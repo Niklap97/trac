@@ -439,6 +439,13 @@ class SessionAdmin(Component):
                format.""" % hints,
                None, self._do_purge)
 
+        yield ('session rename', '<old-sid[:0|1]> <new-sid>',
+               """Set a new sid
+
+               Resets the sid attribute of the given sid.
+               """,
+               None, self._do_rename)
+
     @lazy
     def _valid_default_handlers(self):
         return sorted(handler.__class__.__name__
@@ -583,6 +590,26 @@ class SessionAdmin(Component):
                                       AND s.authenticated=0)
                 """)
 
+    def _do_rename(self, sid, newsid):
+        sid, authenticated = self._split_sid(sid)
+        with self.env.db_transaction as db:
+            if not db("""SELECT sid FROM session
+                         WHERE sid=%s AND authenticated=%s""",
+                         (sid, authenticated)):
+                raise AdminCommandError(_("Session '%(sid)s' not found",
+                                          sid=sid))
+            if newsid:
+                db("""
+                    UPDATE session
+                    SET sid=%s 
+                    WHERE sid =%s AND authenticated=%s
+                    """, (newsid, sid, authenticated))
+                db("""
+                    UPDATE session_attribute
+                    SET sid=%s
+                    WHERE sid =%s AND authenticated=%s
+                    """, (newsid, sid, authenticated))
+        self.env.invalidate_known_users_cache()
 
 def get_session_attribute(env, sid, authenticated, name, default=None):
     for row in env.db_query("""

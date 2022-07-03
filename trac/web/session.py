@@ -592,12 +592,20 @@ class SessionAdmin(Component):
 
     def _do_rename(self, sid, newsid):
         sid, authenticated = self._split_sid(sid)
+        assert newsid, 'Session ID cannot be empty'
+        if newsid == sid:
+            return
         with self.env.db_transaction as db:
             if not db("""SELECT sid FROM session
                          WHERE sid=%s AND authenticated=%s""",
                          (sid, authenticated)):
                 raise AdminCommandError(_("Session '%(sid)s' not found",
                                           sid=sid))
+            if db("""SELECT sid FROM session 
+                     WHERE sid=%s""",
+                     (newsid,)):
+                raise AdminCommandError(_("Session '%(newsid)s' already exists. Please choose a different sid.",
+                                          newsid=newsid))
             if newsid:
                 db("""
                     UPDATE session
@@ -609,6 +617,23 @@ class SessionAdmin(Component):
                     SET sid=%s
                     WHERE sid =%s AND authenticated=%s
                     """, (newsid, sid, authenticated))
+                db("""
+                    UPDATE notify_subscription
+                    SET sid=%s
+                    WHERE sid =%s AND authenticated=%s
+                    """, (newsid, sid, authenticated)) 
+                db("""
+                    UPDATE notify_watch
+                    SET sid=%s
+                    WHERE sid =%s AND authenticated=%s
+                    """, (newsid, sid, authenticated)) 
+                db("""
+                    UPDATE wiki
+                    SET author=%s
+                    WHERE author =%s
+                    """, (newsid, sid))
+
+                    
         self.env.invalidate_known_users_cache()
 
 def get_session_attribute(env, sid, authenticated, name, default=None):

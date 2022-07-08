@@ -58,6 +58,7 @@ session delete         Delete the session of the specified sid
 session list           List the name and email for the given sids
 session purge          Purge anonymous sessions older than given age or date
 session set            Set the name or email attribute of the given sid
+session rename         Set a new sid
 severity add           Add a severity value option
 severity change        Change a severity value
 severity list          Show possible ticket severities
